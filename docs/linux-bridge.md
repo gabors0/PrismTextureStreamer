@@ -62,8 +62,8 @@ disconnect. Stop it with Ctrl+C.
 
 ## Build the Windows DLL
 
-On Windows, open `PrismTextureStreamerFB.sln` in Visual Studio 2022 with the
-Desktop development with C++ workload and Windows 10 SDK 10.0.22621 installed.
+On Windows, open `PrismTextureStreamerFB.sln` in Visual Studio with the Desktop
+development with C++ workload and a current Windows 10 or Windows 11 SDK installed.
 Select `Release | x64` and build the solution. The project uses its bundled
 MinHook and ImGui libraries and links the system Winsock library.
 
