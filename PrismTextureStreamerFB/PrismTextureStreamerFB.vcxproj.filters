@@ -32,6 +32,9 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\bridge\frame_protocol.cpp">
+      <Filter>Source Files\sources</Filter>
+    </ClCompile>
     <ClCompile Include="dllmain.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -65,8 +68,14 @@
     <ClCompile Include="sources\wgc_window.cpp">
       <Filter>Source Files\sources</Filter>
     </ClCompile>
+    <ClCompile Include="sources\linux_bridge.cpp">
+      <Filter>Source Files\sources</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\bridge\frame_protocol.h">
+      <Filter>Source Files\sources</Filter>
+    </ClInclude>
     <ClInclude Include="scs_logging.h">
       <Filter>Source Files</Filter>
     </ClInclude>
@@ -113,6 +122,9 @@
       <Filter>Source Files\prism</Filter>
     </ClInclude>
     <ClInclude Include="sources\wgc_window.h">
+      <Filter>Source Files\sources</Filter>
+    </ClInclude>
+    <ClInclude Include="sources\linux_bridge.h">
       <Filter>Source Files\sources</Filter>
     </ClInclude>
     <ClInclude Include="sources\wgc_dispatcher.h">

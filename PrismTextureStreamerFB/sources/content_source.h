@@ -3,7 +3,8 @@
 #include <vector>
 #include <Windows.h>
 
-// A content source produces RGBA8 frames of a fixed size on its own worker thread
+// A content source produces RGBA8 frames without doing capture work on the render thread.
+// Width and height may change between successfully copied frames.
 class IContentSource
 {
 public:

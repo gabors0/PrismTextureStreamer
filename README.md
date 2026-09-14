@@ -48,9 +48,11 @@ Every present call, each screen with a live texture and an active source:
 The GPS/dashboard/custom screens are normally only drawn under specific in game conditions. `dllmain.cpp` patches the relevant conditional jump in the games process, flipping `JE` to `JMP` (and back) at runtime so the screen's render path is unconditionally taken whenever a screen of that type exists, and restored to normal when it doesn't. Addresses are found via pattern scanning, so it hopefully survives most game updates.
 
 ## Content sources
-Currently there's one source implementation, **`WindowSource`**, which finds a target window by executable name, then captures it every frame using `PrintWindow` + `GetDIBits` on a dedicated worker thread.
+Windows applications can be captured with **`WindowSource`** (`PrintWindow` + `GetDIBits`) or **`WgcWindowSource`** (Windows Graphics Capture). A first-stage **Linux bridge source** accepts bounded RGBA8 frames from a native test sender over localhost, allowing the Windows DLL to remain inside an ETS2 Proton process.
 
 The source uses a interface `IContentSource`, so other backends (a video file source, a mintor source, etc) can be implimented very easially in the future without touching the DX11 or menu code.
+
+See [Linux/Wayland bridge: stage 1](docs/linux-bridge.md) for the protocol, native sender build, and exact Proton test steps. Portal/PipeWire capture is intentionally not part of this stage.
 
 ## Requirements
 - MinHook
@@ -76,4 +78,3 @@ PRs and issues are welcome, keep in mind:
 - If you're adding a new `IContentSource` (video file, monitor capture, etc.), implement it against the existing interface in `sources/content_source.h`.
 - Match existing code style so diffs stay reviewable and the project isnt a mess of multiple people.
 - Test on an actual ETS2 install before opening a PR.
-

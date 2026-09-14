@@ -1,0 +1,18 @@
+name: Windows DLL build
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: microsoft/setup-msbuild@v2
+      - name: Build Release x64 DLL
+        run: msbuild PrismTextureStreamerFB.sln /m /p:Configuration=Release /p:Platform=x64
+      - uses: actions/upload-artifact@v4
+        with:
+          name: PrismTextureStreamerFB-win-x64
+          path: '**/Release/PrismTextureStreamerFB.dll'

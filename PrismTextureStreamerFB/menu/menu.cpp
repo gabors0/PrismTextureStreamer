@@ -19,6 +19,7 @@ using namespace scs_logging;
 #include "../screens.h"
 #include "../sources/window.h"
 #include "../sources/wgc_window.h"
+#include "../sources/linux_bridge.h"
 
 #include <dwmapi.h>
 #pragma comment(lib, "dwmapi.lib")
@@ -299,6 +300,7 @@ void on_frame()
 						screen.source_application_display_name.clear();
 						screen.source_application_name.clear();
 						screen.source_application_hwnd = nullptr;
+						screen.linuxBridge = false;
 					}
 
 					const char* preview = screen.source_application_name.empty() ? "Select Source..." : screen.source_application_name.c_str();
@@ -306,14 +308,24 @@ void on_frame()
 					bool changed = false;
 					if (ImGui::BeginCombo("##appcombo", preview))
 					{
+						const bool bridgeSelected = screen.linuxBridge;
+						if (ImGui::Selectable("Linux bridge (localhost:27861)##linux_bridge", bridgeSelected)) {
+							screen.source_application_name = "Linux bridge";
+							screen.source_application_display_name = "localhost:27861";
+							screen.source_application_hwnd = nullptr;
+							screen.linuxBridge = true;
+							changed = true;
+						}
+
 						int i = 0;
 						for (const auto& [title, entry] : applications) {
-							bool selected = (entry.application_hwnd == (HWND)screen.source_application_hwnd);
+							bool selected = !screen.linuxBridge && (entry.application_hwnd == (HWND)screen.source_application_hwnd);
 
 							if (ImGui::Selectable(("[" + entry.applicationName + "] " + title + "##" + std::to_string(i)).c_str(), selected)) {
 								screen.source_application_name = entry.applicationName;
 								screen.source_application_display_name = title;
 								screen.source_application_hwnd = (void*)entry.application_hwnd;
+								screen.linuxBridge = false;
 								changed = true;
 							}
 
@@ -329,7 +341,10 @@ void on_frame()
 						g_screen_source_creation_in_progress = true;
 						screen.source.reset(); // Destroy before construct
 
-						if (screen.legacyCapture) {
+						if (screen.linuxBridge) {
+							screen.source = sources::CreateLinuxBridgeSource();
+						}
+						else if (screen.legacyCapture) {
 							screen.source = sources::CreateWindowSource((HWND)screen.source_application_hwnd, screen.source_application_display_name.c_str());
 						}
 						else {
@@ -340,6 +355,7 @@ void on_frame()
 							screen.source_application_display_name.clear();
 							screen.source_application_name.clear();
 							screen.source_application_hwnd = nullptr;
+							screen.linuxBridge = false;
 							ImGui::OpenPopup("Source Error");
 						}
 

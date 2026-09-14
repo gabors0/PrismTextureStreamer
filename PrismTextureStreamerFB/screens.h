@@ -29,6 +29,7 @@ struct screen_t
 	std::string source_application_display_name;
 	std::unique_ptr<IContentSource> source;
 	std::vector<uint8_t> frameScratch;
+	bool linuxBridge = false;
 	bool legacyCapture = false;
 	bool flipVertical = true;
 

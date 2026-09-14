@@ -140,6 +140,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="..\bridge\frame_protocol.cpp" />
     <ClCompile Include="dinput8\dinput8.cpp" />
     <ClCompile Include="dllmain.cpp" />
     <ClCompile Include="dx11\CreateTexture2D.cpp" />
@@ -148,11 +149,13 @@
     <ClCompile Include="misc\imgui_stdlib.cpp" />
     <ClCompile Include="prism\execute_command.cpp" />
     <ClCompile Include="prism\memserver_texture_queue.cpp" />
+    <ClCompile Include="sources\linux_bridge.cpp" />
     <ClCompile Include="sources\wgc_window.cpp" />
     <ClCompile Include="sources\window.cpp" />
     <ClCompile Include="win32\win32.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\bridge\frame_protocol.h" />
     <ClInclude Include="bmem.h" />
     <ClInclude Include="dinput8\dinput8.h" />
     <ClInclude Include="dx11\CreateTexture2D.h" />
@@ -166,6 +169,7 @@
     <ClInclude Include="screens.h" />
     <ClInclude Include="scs_logging.h" />
     <ClInclude Include="sources\content_source.h" />
+    <ClInclude Include="sources\linux_bridge.h" />
     <ClInclude Include="sources\wgc_dispatcher.h" />
     <ClInclude Include="sources\wgc_window.h" />
     <ClInclude Include="sources\window.h" />
