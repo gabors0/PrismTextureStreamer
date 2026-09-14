@@ -240,6 +240,8 @@ struct CaptureState
     spa_video_info_raw format{};
     FrameSender* sender{};
     uint32_t fps{};
+    uint32_t maxWidth{ bridge_protocol::kMaxWidth };
+    uint32_t maxHeight{ bridge_protocol::kMaxHeight };
     std::chrono::steady_clock::time_point lastFrame{};
 };
 
@@ -292,7 +294,7 @@ bool ConvertFrame(const CaptureState& capture, const spa_data& plane,
     if (plane.chunk->stride < 0) return false;
     return ConvertToLimitedRgba(static_cast<const uint8_t*>(plane.data), plane.maxsize,
         plane.chunk->offset, static_cast<uint32_t>(plane.chunk->stride), sourceWidth, sourceHeight,
-        layout, bridge_protocol::kMaxWidth, bridge_protocol::kMaxHeight,
+        layout, capture.maxWidth, capture.maxHeight,
         outputWidth, outputHeight, output);
 }
 
@@ -346,10 +348,29 @@ int main(int argc, char** argv)
 {
     uint32_t fps = 15;
     uint32_t port = bridge_protocol::kDefaultPort;
+    uint32_t maxWidth = bridge_protocol::kMaxWidth;
+    uint32_t maxHeight = bridge_protocol::kMaxHeight;
     if (argc > 1) fps = ParseNumber(argv[1], "fps");
     if (argc > 2) port = ParseNumber(argv[2], "port");
-    if (argc > 3 || fps == 0 || fps > 30 || port == 0 || port > 65535) {
-        std::cerr << "Usage: " << argv[0] << " [fps 1-30 [port 1-65535]]\n";
+    if (argc > 3) maxWidth = ParseNumber(argv[3], "max width");
+    if (argc > 4) maxHeight = ParseNumber(argv[4], "max height");
+
+    // Keep the easiest 60 FPS invocation inside roughly the same bandwidth
+    // envelope as 1280x720 at 30 FPS.
+    if (fps > 30 && argc <= 3) {
+        maxWidth = 960;
+        maxHeight = 540;
+    }
+
+    constexpr uint64_t kMaxBytesPerSecond = 128ull * 1024 * 1024;
+    const uint64_t maximumBandwidth = static_cast<uint64_t>(maxWidth) * maxHeight * 4 * fps;
+    if (argc > 5 || argc == 4 || fps == 0 || fps > 60 || port == 0 || port > 65535 ||
+        maxWidth == 0 || maxHeight == 0 || maxWidth > bridge_protocol::kMaxWidth ||
+        maxHeight > bridge_protocol::kMaxHeight || maximumBandwidth > kMaxBytesPerSecond) {
+        std::cerr << "Usage: " << argv[0]
+                  << " [fps 1-60 [port 1-65535 [max-width max-height]]]\n"
+                  << "Maximum output is " << bridge_protocol::kMaxWidth << 'x'
+                  << bridge_protocol::kMaxHeight << " and maximum raw bandwidth is 128 MiB/s\n";
         return 2;
     }
 
@@ -381,6 +402,8 @@ int main(int argc, char** argv)
     pw_init(&argc, &argv);
     CaptureState capture;
     capture.fps = fps;
+    capture.maxWidth = maxWidth;
+    capture.maxHeight = maxHeight;
     capture.loop = pw_main_loop_new(nullptr);
     pw_context* context = capture.loop
         ? pw_context_new(pw_main_loop_get_loop(capture.loop), nullptr, 0)
@@ -422,7 +445,7 @@ int main(int argc, char** argv)
 
     uint8_t podBuffer[1024];
     spa_pod_builder builder = SPA_POD_BUILDER_INIT(podBuffer, sizeof(podBuffer));
-    spa_rectangle defaultSize = SPA_RECTANGLE(640, 360);
+    spa_rectangle defaultSize = SPA_RECTANGLE(maxWidth, maxHeight);
     spa_rectangle minimumSize = SPA_RECTANGLE(1, 1);
     spa_rectangle maximumSize = SPA_RECTANGLE(8192, 8192);
     spa_fraction defaultRate = SPA_FRACTION(fps, 1);
@@ -451,7 +474,8 @@ int main(int argc, char** argv)
     } else {
         pw_loop_add_signal(pw_main_loop_get_loop(capture.loop), SIGINT, OnPipeWireSignal, &capture);
         pw_loop_add_signal(pw_main_loop_get_loop(capture.loop), SIGTERM, OnPipeWireSignal, &capture);
-        std::cout << "Portal capture started at up to " << fps << " FPS; press Ctrl+C to stop\n";
+        std::cout << "Portal capture started at up to " << fps << " FPS, output limited to "
+                  << maxWidth << 'x' << maxHeight << "; press Ctrl+C to stop\n";
         pw_main_loop_run(capture.loop);
     }
 

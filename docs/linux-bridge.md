@@ -78,11 +78,17 @@ PipeWire stream, converts RGBx/RGBA/BGRx/BGRA to RGBA8, scales it to fit within
 1280x720, caps publication to 15 FPS by default, and drops old frames instead of
 blocking capture on TCP. It drains queued PipeWire buffers to the newest frame
 and bounds TCP buffering to reduce end-to-end latency. Optional arguments are
-FPS and port:
+FPS, port, and a maximum output size:
 
 ```sh
 ./linux_bridge/build/portal_sender 20 27861
+./linux_bridge/build/portal_sender 60
+./linux_bridge/build/portal_sender 60 27861 960 540
 ```
+
+FPS may be 1-60. At 31-60 FPS, omitting the size automatically selects 960x540;
+at 30 FPS and below it defaults to 1280x720. Explicit settings that exceed a
+128 MiB/s raw-frame budget are rejected, so 1280x720 at 60 FPS is not allowed.
 
 The default portal cursor mode is used. Capture permission is requested each
 time; persistent restore tokens are intentionally not implemented yet. See the
