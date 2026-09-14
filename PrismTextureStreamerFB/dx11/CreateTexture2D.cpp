@@ -37,7 +37,13 @@ HRESULT HookedCreateTexture2D(ID3D11Device* pDevice, const D3D11_TEXTURE2D_DESC*
 
 
             D3D11_TEXTURE2D_DESC modifiedDesc = *pDesc;
-            modifiedDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+            // Desktop capture pixels are display-encoded sRGB. Mark only the
+            // Linux bridge texture as sRGB so the GPU linearizes it when the
+            // game samples the texture instead of rendering raised midtones.
+            // Preserve the established format for Windows capture sources.
+            modifiedDesc.Format = screen.linuxBridge
+                ? DXGI_FORMAT_R8G8B8A8_UNORM_SRGB
+                : DXGI_FORMAT_R8G8B8A8_UNORM;
             modifiedDesc.Usage = D3D11_USAGE_DYNAMIC;
             modifiedDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
             modifiedDesc.MiscFlags = 0;

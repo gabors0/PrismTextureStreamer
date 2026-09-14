@@ -92,6 +92,9 @@ at 30 FPS and below it defaults to 1280x720. Explicit settings that exceed a
 The DLL preserves the source aspect ratio for Linux bridge frames and centers
 the image with opaque black bars when the target game texture has a different
 shape. Existing Windows capture sources retain their original stretch behavior.
+Linux bridge textures are marked as sRGB so captured desktop midtones are
+linearized by the GPU instead of appearing washed out; Windows source texture
+formats remain unchanged.
 
 The default portal cursor mode is used. Capture permission is requested each
 time; persistent restore tokens are intentionally not implemented yet. See the
