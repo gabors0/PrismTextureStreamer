@@ -1,18 +1,15 @@
 #include "../bridge/frame_protocol.h"
+#include "frame_sender.h"
 
 #include <algorithm>
-#include <arpa/inet.h>
 #include <cerrno>
 #include <chrono>
 #include <csignal>
 #include <cstdint>
 #include <cstdlib>
-#include <cstring>
 #include <iostream>
 #include <string>
-#include <sys/socket.h>
 #include <thread>
-#include <unistd.h>
 #include <vector>
 
 namespace {
@@ -20,21 +17,6 @@ namespace {
 volatile std::sig_atomic_t g_stop{};
 
 void HandleSignal(int) { g_stop = 1; }
-
-bool SendAll(int socket, const uint8_t* data, size_t size)
-{
-    while (size != 0) {
-        const ssize_t sent = send(socket, data, size, MSG_NOSIGNAL);
-        if (sent > 0) {
-            data += sent;
-            size -= static_cast<size_t>(sent);
-            continue;
-        }
-        if (sent < 0 && errno == EINTR) continue;
-        return false;
-    }
-    return true;
-}
 
 uint32_t ParseNumber(const char* value, const char* name)
 {
@@ -94,64 +76,21 @@ int main(int argc, char** argv)
     std::signal(SIGINT, HandleSignal);
     std::signal(SIGTERM, HandleSignal);
 
-    const size_t payloadSize = static_cast<size_t>(width) * height * bridge_protocol::kBytesPerPixel;
-    std::vector<uint8_t> pixels(payloadSize);
+    FrameSender sender(static_cast<uint16_t>(port));
+    sender.Start();
     uint64_t sequence = 0;
     const auto frameInterval = std::chrono::microseconds(1000000 / fps);
 
     while (!g_stop) {
-        const int socketFd = socket(AF_INET, SOCK_STREAM, 0);
-        if (socketFd < 0) {
-            std::cerr << "socket failed: " << std::strerror(errno) << '\n';
-            return 1;
-        }
-
-        sockaddr_in address{};
-        address.sin_family = AF_INET;
-        address.sin_port = htons(static_cast<uint16_t>(port));
-        inet_pton(AF_INET, "127.0.0.1", &address.sin_addr);
-
-        if (connect(socketFd, reinterpret_cast<const sockaddr*>(&address), sizeof(address)) != 0) {
-            close(socketFd);
-            std::cerr << "Waiting for 127.0.0.1:" << port << "...\r" << std::flush;
-            std::this_thread::sleep_for(std::chrono::seconds(1));
-            continue;
-        }
-
-        std::cout << "Connected to 127.0.0.1:" << port << " at "
-                  << width << 'x' << height << " RGBA8, " << fps << " FPS\n";
-
-        while (!g_stop) {
-            const auto frameStart = std::chrono::steady_clock::now();
-            FillPattern(pixels, width, height, sequence);
-
-            bridge_protocol::Header header;
-            header.width = width;
-            header.height = height;
-            header.payloadSize = static_cast<uint32_t>(payloadSize);
-            header.sequence = sequence++;
-
-            std::array<uint8_t, bridge_protocol::kHeaderSize> encoded{};
-            std::string error;
-            if (!bridge_protocol::EncodeHeader(header, encoded, &error)) {
-                std::cerr << "Header error: " << error << '\n';
-                close(socketFd);
-                return 1;
-            }
-
-            if (!SendAll(socketFd, encoded.data(), encoded.size()) ||
-                !SendAll(socketFd, pixels.data(), pixels.size())) {
-                std::cerr << "Sender disconnected; retrying...\n";
-                break;
-            }
-
-            const auto elapsed = std::chrono::steady_clock::now() - frameStart;
-            if (elapsed < frameInterval) std::this_thread::sleep_for(frameInterval - elapsed);
-        }
-
-        close(socketFd);
+        const auto frameStart = std::chrono::steady_clock::now();
+        std::vector<uint8_t> pixels(static_cast<size_t>(width) * height * bridge_protocol::kBytesPerPixel);
+        FillPattern(pixels, width, height, sequence++);
+        sender.Publish(width, height, std::move(pixels));
+        const auto elapsed = std::chrono::steady_clock::now() - frameStart;
+        if (elapsed < frameInterval) std::this_thread::sleep_for(frameInterval - elapsed);
     }
 
+    sender.Stop();
     std::cout << "Stopped\n";
     return 0;
 }

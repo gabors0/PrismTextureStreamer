@@ -52,7 +52,8 @@ Windows applications can be captured with **`WindowSource`** (`PrintWindow` + `G
 
 The source uses a interface `IContentSource`, so other backends (a video file source, a mintor source, etc) can be implimented very easially in the future without touching the DX11 or menu code.
 
-See [Linux/Wayland bridge: stage 1](docs/linux-bridge.md) for the protocol, native sender build, and exact Proton test steps. Portal/PipeWire capture is intentionally not part of this stage.
+See [Linux/Wayland bridge](docs/linux-bridge.md) for the protocol, test-pattern
+sender, experimental portal/PipeWire sender, and exact Proton test steps.
 
 ## Requirements
 - MinHook

@@ -1,10 +1,11 @@
-# Linux/Wayland bridge: stage 1
+# Linux/Wayland bridge
 
 Euro Truck Simulator 2 and `PrismTextureStreamerFB.dll` remain Windows binaries
 running inside Proton. Native Wayland windows are not Win32 windows, so the
 existing `EnumWindows`, Windows Graphics Capture, and `PrintWindow` sources
-cannot capture them. This stage adds a localhost frame boundary; it deliberately
-does not add portal or PipeWire capture yet.
+cannot capture them. The localhost frame boundary remains independent of how
+Linux obtains a frame. A generated test pattern is the stable diagnostic source;
+the experimental portal sender adds one native Wayland capture source.
 
 ## Frame transport protocol v1
 
@@ -35,7 +36,7 @@ before TCP overhead). A future PipeWire sender must scale captured frames to
 these limits before transmission. Compression, authentication, and multiple
 bridge screens are outside this stage.
 
-## Build the native test sender and tests
+## Build the native senders and tests
 
 No extra libraries are required beyond a C++17 compiler, GNU Make, and standard
 Linux/POSIX headers:
@@ -59,6 +60,32 @@ Optional positional arguments are width, height, FPS, and port. For example:
 
 The sender connects only to `127.0.0.1` and retries after startup ordering or a
 disconnect. Stop it with Ctrl+C.
+
+### Experimental Wayland portal sender
+
+The native capture sender requires development files for GLib/GIO and PipeWire
+(`gio-2.0`, `gio-unix-2.0`, `libpipewire-0.3`, and `libspa-0.2` in pkg-config).
+On CachyOS/Arch these are supplied by the `glib2` and `pipewire` packages. Build
+it separately so missing capture dependencies never break the test sender:
+
+```sh
+make -C linux_bridge portal
+./linux_bridge/build/portal_sender
+```
+
+The portal dialog allows one monitor or window. The sender consumes one raw
+PipeWire stream, converts RGBx/RGBA/BGRx/BGRA to RGBA8, scales it to fit within
+1280x720, caps publication to 15 FPS by default, and drops old frames instead of
+blocking capture on TCP. Optional arguments are FPS and port:
+
+```sh
+./linux_bridge/build/portal_sender 20 27861
+```
+
+The default portal cursor mode is used. Capture permission is requested each
+time; persistent restore tokens are intentionally not implemented yet. See the
+[ScreenCast portal lifecycle](https://flatpak.github.io/xdg-desktop-portal/docs/doc-org.freedesktop.portal.ScreenCast.html)
+and the [PipeWire video capture tutorial](https://docs.pipewire.org/page_tutorial5.html).
 
 ## Build the Windows DLL
 
@@ -108,10 +135,24 @@ the `PrismTextureStreamerFB-win-x64` artifact when the repository is pushed.
 If the menu reports “Source Error,” another screen/process probably already owns
 TCP port 27861. Stage 1 intentionally supports only one Linux bridge source.
 
+## Portal/PipeWire manual test
+
+1. Complete the DLL setup above and select `Linux bridge (localhost:27861)` in
+   ETS2.
+2. Run `make -C linux_bridge portal` from the repository root.
+3. Run `./linux_bridge/build/portal_sender` in the active Wayland desktop
+   session, not over SSH or with `sudo`.
+4. Choose exactly one native window or monitor in the system portal dialog.
+5. Verify the selected content appears in ETS2. Stop with Ctrl+C; start it again
+   and make another selection to test reconnecting.
+
+If D-Bus reports that the ScreenCast interface is unavailable, verify the normal
+desktop portal and the KDE or Niri-compatible portal backend are running. The
+sender does not modify portal configuration.
+
 ## Next step
 
-Replace the generated pattern in the native sender with one portal/PipeWire
-capture session: request a window through `org.freedesktop.portal.ScreenCast`,
-consume PipeWire frames, convert them to top-down RGBA8, scale to at most
-1280x720, and feed the existing protocol writer. The DLL and its DX11 path do not
-need to change for that step.
+Test the experimental sender across KDE and Niri, then add format support only
+for formats actually observed there (DMA-BUF/modifier negotiation or additional
+raw formats if required). After that, persist the portal restore token to avoid
+showing the chooser on every launch.
