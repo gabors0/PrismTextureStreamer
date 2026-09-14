@@ -10,8 +10,8 @@ the experimental portal sender adds one native Wayland capture source.
 ## Frame transport protocol v1
 
 The DLL is a TCP server bound only to `127.0.0.1:27861`. One sender connection is
-handled at a time. There is no handshake: the stream is a sequence of a 32-byte
-header followed immediately by its RGBA8 payload. All integers are little-endian.
+handled at a time. The Linux-to-DLL stream is a sequence of a 32-byte header
+followed immediately by its RGBA8 payload. All integers are little-endian.
 
 | Offset | Size | Field | v1 value |
 | ---: | ---: | --- | --- |
@@ -32,9 +32,24 @@ holding stale pixels, and can reconnect without reselecting it in the menu.
 
 Protocol v1 deliberately caps frames at 1280x720 (3.52 MiB each). The test sender
 also caps its rate at 30 FPS and defaults to 640x360 at 15 FPS (about 13.8 MB/s
-before TCP overhead). A future PipeWire sender must scale captured frames to
-these limits before transmission. Compression, authentication, and multiple
-bridge screens are outside this stage.
+before TCP overhead). The portal sender scales captured frames to these limits
+before transmission. Compression, authentication, and multiple bridge screens
+are outside this stage.
+
+### Helper control protocol v1
+
+The same TCP connection has an optional DLL-to-Linux control direction. A
+headless helper waits for this fixed eight-byte message before opening the portal
+chooser. Existing frame-only senders may ignore it.
+
+| Offset | Size | Field | v1 value |
+| ---: | ---: | --- | --- |
+| 0 | 4 | Magic bytes | ASCII `PTSC` |
+| 4 | 2 | Version | `1` |
+| 6 | 2 | Command | `1` = start capture |
+
+The helper parser supports fragmented and combined messages and rejects unknown
+magic, versions, and commands. Future commands must retain explicit versioning.
 
 ## Build the native senders and tests
 
@@ -73,6 +88,17 @@ make -C linux_bridge portal
 ./linux_bridge/build/portal_sender
 ```
 
+The default command is the manually started mode: it opens the chooser
+immediately. To start the helper manually but let the mod UI trigger the chooser,
+use:
+
+```sh
+./linux_bridge/build/portal_sender --wait 60
+```
+
+It connects while idle. Select `Linux bridge (localhost:27861)` in the mod UI to
+open the chooser.
+
 The portal dialog allows one monitor or window. The sender consumes one raw
 PipeWire stream, converts RGBx/RGBA/BGRx/BGRA to RGBA8, scales it to fit within
 1280x720, caps publication to 15 FPS by default, and drops old frames instead of
@@ -100,6 +126,20 @@ The default portal cursor mode is used. Capture permission is requested each
 time; persistent restore tokens are intentionally not implemented yet. See the
 [ScreenCast portal lifecycle](https://flatpak.github.io/xdg-desktop-portal/docs/doc-org.freedesktop.portal.ScreenCast.html)
 and the [PipeWire video capture tutorial](https://docs.pipewire.org/page_tutorial5.html).
+
+### Start it automatically with ETS2
+
+After building the portal sender, set ETS2's Steam Launch Options to the absolute
+path of the included wrapper followed by `%command%`:
+
+```text
+"/absolute/path/to/PrismTextureStreamer/linux_bridge/run_with_bridge.sh" %command%
+```
+
+The wrapper starts `portal_sender --wait 60`, launches the unchanged Proton game
+command, and stops the helper when the game exits. It does not install a service
+or change system configuration. The portal dialog appears only after selecting
+the Linux bridge source in the mod UI.
 
 ## Build the Windows DLL
 

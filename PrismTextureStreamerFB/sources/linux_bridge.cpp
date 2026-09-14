@@ -3,6 +3,7 @@
 
 #include "linux_bridge.h"
 
+#include "../../bridge/control_protocol.h"
 #include "../../bridge/frame_protocol.h"
 #include "../scs_logging.h"
 
@@ -103,6 +104,32 @@ public:
     }
 
 private:
+    bool SendStartCapture(SOCKET client)
+    {
+        bridge_protocol::ControlMessage message{
+            bridge_protocol::ControlCommand::StartCapture
+        };
+        std::array<uint8_t, bridge_protocol::kControlMessageSize> encoded{};
+        std::string error;
+        if (!bridge_protocol::EncodeControlMessage(message, encoded, &error)) {
+            scs_log(2, "[LinuxBridgeSource] Could not encode start command: %s", error.c_str());
+            return false;
+        }
+
+        size_t sentTotal = 0;
+        while (sentTotal < encoded.size()) {
+            const int sent = send(client,
+                reinterpret_cast<const char*>(encoded.data() + sentTotal),
+                static_cast<int>(encoded.size() - sentTotal), 0);
+            if (sent <= 0) {
+                scs_log(1, "[LinuxBridgeSource] Could not request portal capture: %d", WSAGetLastError());
+                return false;
+            }
+            sentTotal += static_cast<size_t>(sent);
+        }
+        return true;
+    }
+
     void Publish(bridge_protocol::Frame&& frame)
     {
         std::lock_guard<std::mutex> lock(m_bufferMutex);
@@ -203,6 +230,15 @@ private:
             const int receiveBufferSize = 512 * 1024;
             setsockopt(client, SOL_SOCKET, SO_RCVBUF,
                 reinterpret_cast<const char*>(&receiveBufferSize), sizeof(receiveBufferSize));
+
+            // Send the command before WSAEventSelect makes the accepted socket
+            // non-blocking. Manual senders safely ignore this reverse channel.
+            u_long blocking = 0;
+            ioctlsocket(client, FIONBIO, &blocking);
+            if (!SendStartCapture(client)) {
+                closesocket(client);
+                continue;
+            }
 
             scs_log(0, "[LinuxBridgeSource] Sender connected");
             ReceiveClient(client);

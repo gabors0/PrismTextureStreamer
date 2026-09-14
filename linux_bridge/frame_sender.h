@@ -20,6 +20,7 @@ public:
 
     void Start();
     void Stop();
+    bool WaitForStartCapture();
     bool Publish(uint32_t width, uint32_t height, std::vector<uint8_t> pixels);
 
 private:
@@ -39,5 +40,8 @@ private:
     std::mutex m_mutex;
     std::condition_variable m_changed;
     PendingFrame m_pending;
+    std::mutex m_controlMutex;
+    std::condition_variable m_controlChanged;
+    bool m_startCaptureRequested{};
     std::thread m_thread;
 };

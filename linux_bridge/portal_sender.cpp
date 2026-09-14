@@ -346,32 +346,48 @@ const pw_stream_events kStreamEvents = [] {
 
 int main(int argc, char** argv)
 {
+    bool waitForGame = false;
+    int firstValue = 1;
+    if (argc > 1 && std::string(argv[1]) == "--wait") {
+        waitForGame = true;
+        firstValue = 2;
+    }
+
     uint32_t fps = 15;
     uint32_t port = bridge_protocol::kDefaultPort;
     uint32_t maxWidth = bridge_protocol::kMaxWidth;
     uint32_t maxHeight = bridge_protocol::kMaxHeight;
-    if (argc > 1) fps = ParseNumber(argv[1], "fps");
-    if (argc > 2) port = ParseNumber(argv[2], "port");
-    if (argc > 3) maxWidth = ParseNumber(argv[3], "max width");
-    if (argc > 4) maxHeight = ParseNumber(argv[4], "max height");
+    const int valueCount = argc - firstValue;
+    if (valueCount > 0) fps = ParseNumber(argv[firstValue], "fps");
+    if (valueCount > 1) port = ParseNumber(argv[firstValue + 1], "port");
+    if (valueCount > 2) maxWidth = ParseNumber(argv[firstValue + 2], "max width");
+    if (valueCount > 3) maxHeight = ParseNumber(argv[firstValue + 3], "max height");
 
     // Keep the easiest 60 FPS invocation inside roughly the same bandwidth
     // envelope as 1280x720 at 30 FPS.
-    if (fps > 30 && argc <= 3) {
+    if (fps > 30 && valueCount <= 2) {
         maxWidth = 960;
         maxHeight = 540;
     }
 
     constexpr uint64_t kMaxBytesPerSecond = 128ull * 1024 * 1024;
     const uint64_t maximumBandwidth = static_cast<uint64_t>(maxWidth) * maxHeight * 4 * fps;
-    if (argc > 5 || argc == 4 || fps == 0 || fps > 60 || port == 0 || port > 65535 ||
+    if (valueCount > 4 || valueCount == 3 || fps == 0 || fps > 60 || port == 0 || port > 65535 ||
         maxWidth == 0 || maxHeight == 0 || maxWidth > bridge_protocol::kMaxWidth ||
         maxHeight > bridge_protocol::kMaxHeight || maximumBandwidth > kMaxBytesPerSecond) {
-        std::cerr << "Usage: " << argv[0]
+        std::cerr << "Usage: " << argv[0] << " [--wait]"
                   << " [fps 1-60 [port 1-65535 [max-width max-height]]]\n"
                   << "Maximum output is " << bridge_protocol::kMaxWidth << 'x'
                   << bridge_protocol::kMaxHeight << " and maximum raw bandwidth is 128 MiB/s\n";
         return 2;
+    }
+
+    FrameSender sender(static_cast<uint16_t>(port));
+    sender.Start();
+    if (waitForGame) {
+        std::cout << "Waiting for the ETS2 mod UI to select the Linux bridge...\n";
+        if (!sender.WaitForStartCapture()) return 0;
+        std::cout << "Capture requested by ETS2; opening the portal chooser\n";
     }
 
     GError* error = nullptr;
@@ -420,9 +436,7 @@ int main(int argc, char** argv)
         return 1;
     }
 
-    FrameSender sender(static_cast<uint16_t>(port));
     capture.sender = &sender;
-    sender.Start();
 
     pw_properties* properties = pw_properties_new(
         PW_KEY_MEDIA_TYPE, "Video",

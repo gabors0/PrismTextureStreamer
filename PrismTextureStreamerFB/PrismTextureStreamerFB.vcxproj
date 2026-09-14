@@ -140,6 +140,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="..\bridge\control_protocol.cpp" />
     <ClCompile Include="..\bridge\frame_protocol.cpp" />
     <ClCompile Include="dinput8\dinput8.cpp" />
     <ClCompile Include="dllmain.cpp" />
@@ -156,6 +157,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\bridge\aspect_fit.h" />
+    <ClInclude Include="..\bridge\control_protocol.h" />
     <ClInclude Include="..\bridge\frame_protocol.h" />
     <ClInclude Include="bmem.h" />
     <ClInclude Include="dinput8\dinput8.h" />

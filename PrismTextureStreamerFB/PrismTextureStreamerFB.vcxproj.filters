@@ -32,6 +32,9 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\bridge\control_protocol.cpp">
+      <Filter>Source Files\sources</Filter>
+    </ClCompile>
     <ClCompile Include="..\bridge\frame_protocol.cpp">
       <Filter>Source Files\sources</Filter>
     </ClCompile>
@@ -74,6 +77,9 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\bridge\aspect_fit.h">
+      <Filter>Source Files\sources</Filter>
+    </ClInclude>
+    <ClInclude Include="..\bridge\control_protocol.h">
       <Filter>Source Files\sources</Filter>
     </ClInclude>
     <ClInclude Include="..\bridge\frame_protocol.h">

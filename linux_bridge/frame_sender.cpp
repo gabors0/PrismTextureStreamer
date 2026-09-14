@@ -1,5 +1,6 @@
 #include "frame_sender.h"
 
+#include "../bridge/control_protocol.h"
 #include "../bridge/frame_protocol.h"
 
 #include <array>
@@ -46,9 +47,19 @@ void FrameSender::Stop()
 {
     m_stop = true;
     m_changed.notify_all();
+    m_controlChanged.notify_all();
     const int socketFd = m_socket.load();
     if (socketFd >= 0) shutdown(socketFd, SHUT_RDWR);
     if (m_thread.joinable()) m_thread.join();
+}
+
+bool FrameSender::WaitForStartCapture()
+{
+    std::unique_lock<std::mutex> lock(m_controlMutex);
+    m_controlChanged.wait(lock, [this] {
+        return m_stop.load() || m_startCaptureRequested;
+    });
+    return m_startCaptureRequested && !m_stop;
 }
 
 bool FrameSender::Publish(uint32_t width, uint32_t height, std::vector<uint8_t> pixels)
@@ -79,6 +90,8 @@ void FrameSender::Run()
         const int socketFd = socket(AF_INET, SOCK_STREAM, 0);
         if (socketFd < 0) {
             std::cerr << "socket failed: " << std::strerror(errno) << '\n';
+            m_stop = true;
+            m_controlChanged.notify_all();
             return;
         }
         m_socket = socketFd;
@@ -113,16 +126,54 @@ void FrameSender::Run()
 
         std::cout << "Connected to 127.0.0.1:" << m_port << '\n';
         bool connected = true;
+        bridge_protocol::ControlStreamParser controlParser;
         while (!m_stop && connected) {
             PendingFrame frame;
+            bool haveFrame = false;
             {
                 std::unique_lock<std::mutex> lock(m_mutex);
-                m_changed.wait(lock, [this, sentGeneration] {
+                m_changed.wait_for(lock, std::chrono::milliseconds(50), [this, sentGeneration] {
                     return m_stop.load() || m_pending.generation != sentGeneration;
                 });
                 if (m_stop) break;
-                frame = m_pending;
+                if (m_pending.generation != sentGeneration) {
+                    frame = m_pending;
+                    haveFrame = true;
+                }
             }
+
+            std::array<uint8_t, 64> controlInput{};
+            while (connected) {
+                const ssize_t received = recv(socketFd, controlInput.data(), controlInput.size(), MSG_DONTWAIT);
+                if (received > 0) {
+                    std::vector<bridge_protocol::ControlMessage> messages;
+                    std::string error;
+                    if (!controlParser.Feed(controlInput.data(), static_cast<size_t>(received), messages, &error)) {
+                        std::cerr << "Invalid receiver control message: " << error << '\n';
+                        connected = false;
+                        break;
+                    }
+                    for (const auto& message : messages) {
+                        if (message.command == bridge_protocol::ControlCommand::StartCapture) {
+                            {
+                                std::lock_guard<std::mutex> lock(m_controlMutex);
+                                m_startCaptureRequested = true;
+                            }
+                            m_controlChanged.notify_one();
+                        }
+                    }
+                    continue;
+                }
+                if (received == 0) {
+                    connected = false;
+                    break;
+                }
+                if (errno == EINTR) continue;
+                if (errno != EAGAIN && errno != EWOULDBLOCK) connected = false;
+                break;
+            }
+
+            if (!connected || !haveFrame) continue;
 
             bridge_protocol::Header header;
             header.width = frame.width;
