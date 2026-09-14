@@ -8,6 +8,7 @@
 #include <chrono>
 #include <cstring>
 #include <iostream>
+#include <netinet/tcp.h>
 #include <string>
 #include <sys/socket.h>
 #include <sys/time.h>
@@ -85,6 +86,14 @@ void FrameSender::Run()
         timeval timeout{};
         timeout.tv_sec = 1;
         setsockopt(socketFd, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout));
+
+        // Keep the kernel from accepting several stale full-size frames when
+        // the Proton receiver briefly falls behind. FrameSender will then
+        // block only its worker and pick the newest published frame next.
+        const int sendBufferSize = 256 * 1024;
+        setsockopt(socketFd, SOL_SOCKET, SO_SNDBUF, &sendBufferSize, sizeof(sendBufferSize));
+        const int noDelay = 1;
+        setsockopt(socketFd, IPPROTO_TCP, TCP_NODELAY, &noDelay, sizeof(noDelay));
 
         sockaddr_in address{};
         address.sin_family = AF_INET;

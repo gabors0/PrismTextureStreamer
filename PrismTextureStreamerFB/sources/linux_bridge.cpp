@@ -198,6 +198,12 @@ private:
             SOCKET client = accept(m_listener, reinterpret_cast<sockaddr*>(&peer), &peerLength);
             if (client == INVALID_SOCKET) continue;
 
+            // Bound the TCP window so complete but obsolete frames cannot
+            // accumulate ahead of the incremental protocol parser.
+            const int receiveBufferSize = 512 * 1024;
+            setsockopt(client, SOL_SOCKET, SO_RCVBUF,
+                reinterpret_cast<const char*>(&receiveBufferSize), sizeof(receiveBufferSize));
+
             scs_log(0, "[LinuxBridgeSource] Sender connected");
             ReceiveClient(client);
             shutdown(client, SD_BOTH);

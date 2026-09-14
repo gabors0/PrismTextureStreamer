@@ -76,7 +76,9 @@ make -C linux_bridge portal
 The portal dialog allows one monitor or window. The sender consumes one raw
 PipeWire stream, converts RGBx/RGBA/BGRx/BGRA to RGBA8, scales it to fit within
 1280x720, caps publication to 15 FPS by default, and drops old frames instead of
-blocking capture on TCP. Optional arguments are FPS and port:
+blocking capture on TCP. It drains queued PipeWire buffers to the newest frame
+and bounds TCP buffering to reduce end-to-end latency. Optional arguments are
+FPS and port:
 
 ```sh
 ./linux_bridge/build/portal_sender 20 27861

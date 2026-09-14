@@ -299,7 +299,14 @@ bool ConvertFrame(const CaptureState& capture, const spa_data& plane,
 void OnStreamProcess(void* userData)
 {
     auto* capture = static_cast<CaptureState*>(userData);
-    pw_buffer* pipewireBuffer = pw_stream_dequeue_buffer(capture->stream);
+    // PipeWire may have queued multiple capture buffers while conversion was
+    // busy. Recycle every older buffer and display only the newest one, as in
+    // PipeWire's low-latency video playback examples.
+    pw_buffer* pipewireBuffer = nullptr;
+    while (pw_buffer* next = pw_stream_dequeue_buffer(capture->stream)) {
+        if (pipewireBuffer) pw_stream_queue_buffer(capture->stream, pipewireBuffer);
+        pipewireBuffer = next;
+    }
     if (!pipewireBuffer) return;
 
     const auto now = std::chrono::steady_clock::now();
