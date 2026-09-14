@@ -73,6 +73,9 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\bridge\aspect_fit.h">
+      <Filter>Source Files\sources</Filter>
+    </ClInclude>
     <ClInclude Include="..\bridge\frame_protocol.h">
       <Filter>Source Files\sources</Filter>
     </ClInclude>

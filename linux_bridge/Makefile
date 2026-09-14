@@ -8,7 +8,7 @@ PORTAL_PACKAGES := gio-2.0 gio-unix-2.0 libpipewire-0.3 libspa-0.2
 
 .PHONY: all portal test clean
 
-all: $(BUILD_DIR)/test_sender $(BUILD_DIR)/protocol_tests $(BUILD_DIR)/frame_convert_tests
+all: $(BUILD_DIR)/test_sender $(BUILD_DIR)/protocol_tests $(BUILD_DIR)/frame_convert_tests $(BUILD_DIR)/aspect_fit_tests
 
 $(BUILD_DIR):
 	mkdir -p $(BUILD_DIR)
@@ -28,9 +28,13 @@ $(BUILD_DIR)/protocol_tests: protocol_tests.cpp $(PROTOCOL) ../bridge/frame_prot
 $(BUILD_DIR)/frame_convert_tests: frame_convert_tests.cpp $(FRAME_CONVERT) frame_convert.h | $(BUILD_DIR)
 	$(CXX) $(CXXFLAGS) frame_convert_tests.cpp $(FRAME_CONVERT) -o $@
 
-test: $(BUILD_DIR)/protocol_tests $(BUILD_DIR)/frame_convert_tests
+$(BUILD_DIR)/aspect_fit_tests: aspect_fit_tests.cpp ../bridge/aspect_fit.h | $(BUILD_DIR)
+	$(CXX) $(CXXFLAGS) aspect_fit_tests.cpp -o $@
+
+test: $(BUILD_DIR)/protocol_tests $(BUILD_DIR)/frame_convert_tests $(BUILD_DIR)/aspect_fit_tests
 	$(BUILD_DIR)/protocol_tests
 	$(BUILD_DIR)/frame_convert_tests
+	$(BUILD_DIR)/aspect_fit_tests
 
 clean:
-	rm -f $(BUILD_DIR)/test_sender $(BUILD_DIR)/portal_sender $(BUILD_DIR)/protocol_tests $(BUILD_DIR)/frame_convert_tests
+	rm -f $(BUILD_DIR)/test_sender $(BUILD_DIR)/portal_sender $(BUILD_DIR)/protocol_tests $(BUILD_DIR)/frame_convert_tests $(BUILD_DIR)/aspect_fit_tests

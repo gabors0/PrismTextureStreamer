@@ -1,8 +1,13 @@
 #include "dx11.h"
 #include <d3d11.h>
 
+#include <algorithm>
+#include <cstdint>
+#include <cstring>
+
 #include <MinHook/MinHook.h>
 
+#include "../../bridge/aspect_fit.h"
 #include "../scs_logging.h"
 using namespace scs_logging;
 
@@ -86,6 +91,9 @@ void new_frame()
         if (srcWidth == 0 || srcHeight == 0 || dstWidth == 0 || dstHeight == 0)
             continue;
 
+        bridge_layout::Rect content{ 0, 0, dstWidth, dstHeight };
+        if (screen.linuxBridge)
+            content = bridge_layout::AspectFit(srcWidth, srcHeight, dstWidth, dstHeight);
 
         D3D11_MAPPED_SUBRESOURCE mapped;
         if (FAILED(screen.immediateContext->Map(screen.liveTexture, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped)))
@@ -94,19 +102,30 @@ void new_frame()
         const uint8_t* src = screen.frameScratch.data();
         uint8_t* dstBase = static_cast<uint8_t*>(mapped.pData);
 
-        for (UINT y = 0; y < dstHeight; ++y)
-        {
-            const UINT srcY = static_cast<UINT>(static_cast<uint64_t>(y) * srcHeight / dstHeight);
-            const UINT dstRow = screen.flipVertical ? (dstHeight - 1 - y) : y;
-            const uint8_t* srcRow = src + static_cast<size_t>(srcY) * srcWidth * 4;
-            uint8_t* dstRowPtr = dstBase + static_cast<size_t>(dstRow) * mapped.RowPitch;
+        if (screen.linuxBridge) {
+            // D3D11_MAP_WRITE_DISCARD does not preserve the previous contents.
+            // Initialize every pixel so unused aspect-fit space is opaque black.
+            for (UINT y = 0; y < dstHeight; ++y) {
+                auto* row = reinterpret_cast<uint32_t*>(
+                    dstBase + static_cast<size_t>(y) * mapped.RowPitch);
+                std::fill_n(row, dstWidth, 0xff000000u);
+            }
+        }
 
-            if (srcWidth == dstWidth) {
-                memcpy(dstRowPtr, srcRow, static_cast<size_t>(dstWidth) * 4);
+        for (UINT y = 0; y < content.height; ++y)
+        {
+            const UINT srcY = static_cast<UINT>(static_cast<uint64_t>(y) * srcHeight / content.height);
+            const UINT dstRow = content.y + (screen.flipVertical ? (content.height - 1 - y) : y);
+            const uint8_t* srcRow = src + static_cast<size_t>(srcY) * srcWidth * 4;
+            uint8_t* dstRowPtr = dstBase + static_cast<size_t>(dstRow) * mapped.RowPitch +
+                static_cast<size_t>(content.x) * 4;
+
+            if (srcWidth == content.width) {
+                memcpy(dstRowPtr, srcRow, static_cast<size_t>(content.width) * 4);
                 continue;
             }
-            for (UINT x = 0; x < dstWidth; ++x) {
-                const UINT srcX = static_cast<UINT>(static_cast<uint64_t>(x) * srcWidth / dstWidth);
+            for (UINT x = 0; x < content.width; ++x) {
+                const UINT srcX = static_cast<UINT>(static_cast<uint64_t>(x) * srcWidth / content.width);
                 memcpy(dstRowPtr + static_cast<size_t>(x) * 4, srcRow + static_cast<size_t>(srcX) * 4, 4);
             }
         }
