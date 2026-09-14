@@ -20,6 +20,7 @@ using namespace winrt::Windows;
 #include <mutex>
 
 #pragma comment(lib, "dxgi.lib")
+#pragma comment(lib, "runtimeobject.lib")
 
 static Graphics::Capture::GraphicsCaptureItem CreateCaptureItemForWindow(HWND application_hwnd)
 {
