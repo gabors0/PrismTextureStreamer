@@ -97,7 +97,9 @@ use:
 ```
 
 It connects while idle. Select `Linux bridge (localhost:27861)` in the mod UI to
-open the chooser.
+open the chooser. With the automatic wrapper running, use the `Choose Window`
+button beside `Flip Screen` to end the current portal session and open a fresh
+chooser without restarting ETS2.
 
 The portal dialog allows one monitor or window. The sender consumes one raw
 PipeWire stream, converts RGBx/RGBA/BGRx/BGRA to RGBA8, scales it to fit within
@@ -136,10 +138,13 @@ path of the included wrapper followed by `%command%`:
 "/absolute/path/to/PrismTextureStreamer/linux_bridge/run_with_bridge.sh" %command%
 ```
 
-The wrapper starts `portal_sender --wait 60`, launches the unchanged Proton game
-command, and stops the helper when the game exits. It does not install a service
-or change system configuration. The portal dialog appears only after selecting
-the Linux bridge source in the mod UI.
+The wrapper supervises `portal_sender --wait 60`, launches the unchanged Proton
+game command, and stops the helper when the game exits. If the shared window
+closes or `Choose Window` requests another selection, the helper exits normally
+and the wrapper starts a fresh portal session. Cancelling the portal chooser or
+a helper error stops automatic retries until the next game launch. The wrapper
+does not install a service or change system configuration. The portal dialog
+appears only after selecting the Linux bridge source in the mod UI.
 
 ## Build the Windows DLL
 
@@ -199,6 +204,10 @@ TCP port 27861. Stage 1 intentionally supports only one Linux bridge source.
 4. Choose exactly one native window or monitor in the system portal dialog.
 5. Verify the selected content appears in ETS2. Stop with Ctrl+C; start it again
    and make another selection to test reconnecting.
+
+When using the Steam wrapper, press Ctrl+F8 and click `Choose Window` to select a
+different source. Closing the captured application should also cause a new
+chooser to appear after the helper restarts.
 
 If D-Bus reports that the ScreenCast interface is unavailable, verify the normal
 desktop portal and the KDE or Niri-compatible portal backend are running. The

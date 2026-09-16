@@ -236,6 +236,7 @@ struct CaptureState
 {
     pw_main_loop* loop{};
     pw_stream* stream{};
+    spa_source* restartEvent{};
     spa_hook streamListener{};
     spa_video_info_raw format{};
     FrameSender* sender{};
@@ -329,6 +330,11 @@ void OnStreamProcess(void* userData)
 }
 
 void OnPipeWireSignal(void* userData, int)
+{
+    pw_main_loop_quit(static_cast<CaptureState*>(userData)->loop);
+}
+
+void OnRestartRequested(void* userData, uint64_t)
 {
     pw_main_loop_quit(static_cast<CaptureState*>(userData)->loop);
 }
@@ -481,16 +487,30 @@ int main(int argc, char** argv)
 
     const pw_stream_flags flags = static_cast<pw_stream_flags>(
         PW_STREAM_FLAG_AUTOCONNECT | PW_STREAM_FLAG_MAP_BUFFERS);
-    const int connectResult = pw_stream_connect(
+    int connectResult = pw_stream_connect(
         capture.stream, PW_DIRECTION_INPUT, nodeId, flags, parameters, 1);
     if (connectResult < 0) {
         std::cerr << "Could not connect PipeWire stream: " << spa_strerror(connectResult) << '\n';
     } else {
-        pw_loop_add_signal(pw_main_loop_get_loop(capture.loop), SIGINT, OnPipeWireSignal, &capture);
-        pw_loop_add_signal(pw_main_loop_get_loop(capture.loop), SIGTERM, OnPipeWireSignal, &capture);
+        pw_loop* loop = pw_main_loop_get_loop(capture.loop);
+        pw_loop_add_signal(loop, SIGINT, OnPipeWireSignal, &capture);
+        pw_loop_add_signal(loop, SIGTERM, OnPipeWireSignal, &capture);
+        if (waitForGame) {
+            capture.restartEvent = pw_loop_add_event(loop, OnRestartRequested, &capture);
+            if (!capture.restartEvent) {
+                std::cerr << "Could not create the capture restart event\n";
+                connectResult = -1;
+            } else {
+                sender.SetRestartCallback([loop, event = capture.restartEvent] {
+                    pw_loop_signal_event(loop, event);
+                });
+            }
+        }
         std::cout << "Portal capture started at up to " << fps << " FPS, output limited to "
                   << maxWidth << 'x' << maxHeight << "; press Ctrl+C to stop\n";
-        pw_main_loop_run(capture.loop);
+        if (connectResult >= 0) pw_main_loop_run(capture.loop);
+        sender.SetRestartCallback({});
+        if (capture.restartEvent) pw_loop_destroy_source(loop, capture.restartEvent);
     }
 
     sender.Stop();

@@ -9,7 +9,7 @@ PORTAL_PACKAGES := gio-2.0 gio-unix-2.0 libpipewire-0.3 libspa-0.2
 
 .PHONY: all portal test clean
 
-all: $(BUILD_DIR)/test_sender $(BUILD_DIR)/protocol_tests $(BUILD_DIR)/control_protocol_tests $(BUILD_DIR)/frame_convert_tests $(BUILD_DIR)/aspect_fit_tests
+all: $(BUILD_DIR)/test_sender $(BUILD_DIR)/protocol_tests $(BUILD_DIR)/control_protocol_tests $(BUILD_DIR)/frame_sender_tests $(BUILD_DIR)/frame_convert_tests $(BUILD_DIR)/aspect_fit_tests
 
 $(BUILD_DIR):
 	mkdir -p $(BUILD_DIR)
@@ -29,17 +29,21 @@ $(BUILD_DIR)/protocol_tests: protocol_tests.cpp $(PROTOCOL) ../bridge/frame_prot
 $(BUILD_DIR)/control_protocol_tests: control_protocol_tests.cpp $(CONTROL_PROTOCOL) ../bridge/control_protocol.h | $(BUILD_DIR)
 	$(CXX) $(CXXFLAGS) control_protocol_tests.cpp $(CONTROL_PROTOCOL) -o $@
 
+$(BUILD_DIR)/frame_sender_tests: frame_sender_tests.cpp $(FRAME_SENDER) frame_sender.h $(PROTOCOL) ../bridge/frame_protocol.h $(CONTROL_PROTOCOL) ../bridge/control_protocol.h | $(BUILD_DIR)
+	$(CXX) $(CXXFLAGS) frame_sender_tests.cpp $(FRAME_SENDER) $(PROTOCOL) $(CONTROL_PROTOCOL) -pthread -o $@
+
 $(BUILD_DIR)/frame_convert_tests: frame_convert_tests.cpp $(FRAME_CONVERT) frame_convert.h | $(BUILD_DIR)
 	$(CXX) $(CXXFLAGS) frame_convert_tests.cpp $(FRAME_CONVERT) -o $@
 
 $(BUILD_DIR)/aspect_fit_tests: aspect_fit_tests.cpp ../bridge/aspect_fit.h | $(BUILD_DIR)
 	$(CXX) $(CXXFLAGS) aspect_fit_tests.cpp -o $@
 
-test: $(BUILD_DIR)/protocol_tests $(BUILD_DIR)/control_protocol_tests $(BUILD_DIR)/frame_convert_tests $(BUILD_DIR)/aspect_fit_tests
+test: $(BUILD_DIR)/protocol_tests $(BUILD_DIR)/control_protocol_tests $(BUILD_DIR)/frame_sender_tests $(BUILD_DIR)/frame_convert_tests $(BUILD_DIR)/aspect_fit_tests
 	$(BUILD_DIR)/protocol_tests
 	$(BUILD_DIR)/control_protocol_tests
+	$(BUILD_DIR)/frame_sender_tests
 	$(BUILD_DIR)/frame_convert_tests
 	$(BUILD_DIR)/aspect_fit_tests
 
 clean:
-	rm -f $(BUILD_DIR)/test_sender $(BUILD_DIR)/portal_sender $(BUILD_DIR)/protocol_tests $(BUILD_DIR)/control_protocol_tests $(BUILD_DIR)/frame_convert_tests $(BUILD_DIR)/aspect_fit_tests
+	rm -f $(BUILD_DIR)/test_sender $(BUILD_DIR)/portal_sender $(BUILD_DIR)/protocol_tests $(BUILD_DIR)/control_protocol_tests $(BUILD_DIR)/frame_sender_tests $(BUILD_DIR)/frame_convert_tests $(BUILD_DIR)/aspect_fit_tests

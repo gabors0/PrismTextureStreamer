@@ -89,6 +89,13 @@ public:
     uint32_t GetWidth() const override { return m_copiedWidth.load(); }
     uint32_t GetHeight() const override { return m_copiedHeight.load(); }
     void SetFramerate(uint8_t) override {}
+    bool IsConnected() const override { return m_clientConnected.load(); }
+
+    bool RequestCapture() override
+    {
+        std::lock_guard<std::mutex> lock(m_clientMutex);
+        return m_client != INVALID_SOCKET && SendStartCapture(m_client);
+    }
 
     bool CopyLatestFrame(std::vector<uint8_t>& dst) override
     {
@@ -240,8 +247,27 @@ private:
                 continue;
             }
 
+            // Keep UI-triggered control sends non-blocking even in the short
+            // interval before ReceiveClient installs its WSA event selection.
+            u_long nonblocking = 1;
+            if (ioctlsocket(client, FIONBIO, &nonblocking) == SOCKET_ERROR) {
+                closesocket(client);
+                continue;
+            }
+
+            {
+                std::lock_guard<std::mutex> lock(m_clientMutex);
+                m_client = client;
+                m_clientConnected = true;
+            }
+
             scs_log(0, "[LinuxBridgeSource] Sender connected");
             ReceiveClient(client);
+            {
+                std::lock_guard<std::mutex> lock(m_clientMutex);
+                if (m_client == client) m_client = INVALID_SOCKET;
+                m_clientConnected = false;
+            }
             shutdown(client, SD_BOTH);
             closesocket(client);
             MarkDisconnected();
@@ -257,6 +283,10 @@ private:
     WSAEVENT m_listenEvent{ WSA_INVALID_EVENT };
     std::thread m_thread;
     std::atomic<bool> m_stopRequested{};
+
+    std::mutex m_clientMutex;
+    SOCKET m_client{ INVALID_SOCKET };
+    std::atomic<bool> m_clientConnected{};
 
     std::mutex m_bufferMutex;
     std::vector<uint8_t> m_frameBuffer;

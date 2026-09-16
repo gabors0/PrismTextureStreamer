@@ -382,6 +382,17 @@ void on_frame()
 					if (ImGui::Button("Flip Screen")) {
 						screen.flipVertical = !screen.flipVertical;
 					}
+					if (screen.linuxBridge && screen.source) {
+						ImGui::SameLine();
+						const bool helperConnected = screen.source->IsConnected();
+						ImGui::BeginDisabled(!helperConnected);
+						if (ImGui::Button("Choose Window")) {
+							screen.source->RequestCapture();
+						}
+						ImGui::EndDisabled();
+						ImGui::SameLine();
+						ImGui::TextDisabled(helperConnected ? "Helper connected" : "Waiting for helper");
+					}
 
 					ImGui::PopID();
 				}

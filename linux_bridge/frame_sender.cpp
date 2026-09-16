@@ -57,9 +57,23 @@ bool FrameSender::WaitForStartCapture()
 {
     std::unique_lock<std::mutex> lock(m_controlMutex);
     m_controlChanged.wait(lock, [this] {
-        return m_stop.load() || m_startCaptureRequested;
+        return m_stop.load() || m_startCaptureRequests != m_consumedStartCaptureRequests;
     });
-    return m_startCaptureRequested && !m_stop;
+    if (m_stop) return false;
+    m_consumedStartCaptureRequests = m_startCaptureRequests;
+    return true;
+}
+
+void FrameSender::SetRestartCallback(std::function<void()> callback)
+{
+    std::lock_guard<std::mutex> lock(m_controlMutex);
+    m_restartCallback = std::move(callback);
+    // A second request may arrive after WaitForStartCapture() returns but
+    // before PipeWire finishes installing its wake-up event.
+    if (m_restartCallback && m_startCaptureRequests != m_consumedStartCaptureRequests) {
+        m_consumedStartCaptureRequests = m_startCaptureRequests;
+        m_restartCallback();
+    }
 }
 
 bool FrameSender::Publish(uint32_t width, uint32_t height, std::vector<uint8_t> pixels)
@@ -157,7 +171,11 @@ void FrameSender::Run()
                         if (message.command == bridge_protocol::ControlCommand::StartCapture) {
                             {
                                 std::lock_guard<std::mutex> lock(m_controlMutex);
-                                m_startCaptureRequested = true;
+                                ++m_startCaptureRequests;
+                                if (m_restartCallback) {
+                                    m_consumedStartCaptureRequests = m_startCaptureRequests;
+                                    m_restartCallback();
+                                }
                             }
                             m_controlChanged.notify_one();
                         }

@@ -15,4 +15,9 @@ public:
 
     virtual void SetFramerate(uint8_t framerate) = 0;
     virtual bool CopyLatestFrame(std::vector<uint8_t>& dst) = 0;
+
+    // Optional source controls. Native Windows capture sources do not need
+    // these; the Linux helper uses them for portal reselection and status.
+    virtual bool RequestCapture() { return false; }
+    virtual bool IsConnected() const { return true; }
 };

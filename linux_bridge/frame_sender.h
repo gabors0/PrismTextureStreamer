@@ -3,6 +3,7 @@
 #include <atomic>
 #include <condition_variable>
 #include <cstdint>
+#include <functional>
 #include <mutex>
 #include <thread>
 #include <vector>
@@ -21,6 +22,7 @@ public:
     void Start();
     void Stop();
     bool WaitForStartCapture();
+    void SetRestartCallback(std::function<void()> callback);
     bool Publish(uint32_t width, uint32_t height, std::vector<uint8_t> pixels);
 
 private:
@@ -42,6 +44,8 @@ private:
     PendingFrame m_pending;
     std::mutex m_controlMutex;
     std::condition_variable m_controlChanged;
-    bool m_startCaptureRequested{};
+    uint64_t m_startCaptureRequests{};
+    uint64_t m_consumedStartCaptureRequests{};
+    std::function<void()> m_restartCallback;
     std::thread m_thread;
 };
