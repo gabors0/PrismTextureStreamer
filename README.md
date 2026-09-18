@@ -7,7 +7,9 @@ A Prism3D plugin that takes over cabin screens (GPS, dashboard, or any custom ac
 ---
 
 ## What it does
+
 Press **Ctrl+F8** in game to open an ImGui overlay. From there you can:
+
 - Add a **GPS** screen, **Dashboard** screen, or a **Custom** screen (The target `.tobj` MUST be a functional screen from a UI Script, such as `/ui/gps.sii`)
 - Pick a running application window as the source for that screen
 - Adjust target resolution and framerate
@@ -15,7 +17,81 @@ Press **Ctrl+F8** in game to open an ImGui overlay. From there you can:
 
 Whatever's rendering in the picked window gets captured and blitted onto the truck's screen every frame.
 
+## Linux/Wayland testing
+
+Linux support is experimental. Euro Truck Simulator 2 and the plugin remain
+Windows builds running through Proton; only the Wayland capture helper is a
+native Linux program. The helper uses xdg-desktop-portal and PipeWire, so it
+works with native Wayland windows that the DLL cannot see through Win32 APIs.
+
+### Requirements
+
+- ETS2 running its Windows DirectX 11 build through Proton
+- A working PipeWire and xdg-desktop-portal installation with the appropriate
+  desktop backend (tested primarily on KDE Plasma and Niri)
+- GNU Make, a C++17 compiler, and the GLib/GIO and PipeWire development files
+- The Release x64 `PrismTextureStreamerFB.dll` from the same `dev` revision
+
+Common build dependency packages are `base-devel`, `glib2`, and `pipewire` on
+Arch/CachyOS, or `build-essential`, `libglib2.0-dev`, and
+`libpipewire-0.3-dev` on Ubuntu/Debian. Do not run the helper with `sudo`.
+
+### Install and run
+
+Clone the test branch and build the helper:
+
+```sh
+git clone --branch dev https://github.com/gabors0/PrismTextureStreamer.git
+cd PrismTextureStreamer
+make -C linux_bridge portal
+```
+
+If the repository is already cloned:
+
+```sh
+git switch dev
+git pull
+make -C linux_bridge portal
+```
+
+Download the `PrismTextureStreamerFB-win-x64` artifact from the
+[latest successful Windows DLL build](https://github.com/gabors0/PrismTextureStreamer/actions/workflows/windows-build.yml?query=branch%3Adev)
+for the `dev` branch. Copy the DLL to:
+
+```text
+steamapps/common/Euro Truck Simulator 2/bin/win_x64/plugins/PrismTextureStreamerFB.dll
+```
+
+Then set ETS2's Steam Launch Options, replacing the path with the absolute path
+to the clone:
+
+```text
+"/absolute/path/to/PrismTextureStreamer/linux_bridge/run_with_bridge.sh" %command%
+```
+
+Start ETS2 normally and select the 64-bit DirectX 11 option if prompted. Load a
+profile, press **Ctrl+F8**, add a screen, set its resolution to **960x540** for
+the first performance test, and select
+**Linux bridge (localhost:27861)**. The portal chooser will then ask for one
+window or monitor. Click **Apply Unsaved Changes** after adding or changing a
+screen.
+
+Use **Choose Window** in the Ctrl+F8 menu to change the shared source without
+restarting ETS2. Closing the captured application should also reopen the portal
+chooser. Cancelling the chooser stops automatic retries until the next game
+launch; the game itself can continue running.
+
+Only one Linux bridge screen is supported at this stage. If performance is
+poor, test with one screen at 960x540 before adding other custom screens.
+
+When reporting results, include the distribution, desktop/compositor, GPU,
+Proton version, selected helper FPS/resolution, approximate game FPS impact,
+and whether window reselection and closing the captured application work.
+Detailed protocol, manual-helper, test-pattern, and troubleshooting information
+is in [the Linux/Wayland bridge documentation](docs/linux-bridge.md).
+
 ## How it works
+
 ### 1. Redirecting the texture file
 A hook on Prism3D's `memserver_texture_queue_processor` walks the engine's pending texture object queue every tick. If a queued `tobj`'s path matches a screen's `original_texture` (e.g. `/vehicle/truck/share/gps.tobj`), the path is swapped for `override_texture` before the engine loads it.
 
@@ -48,9 +124,10 @@ Every present call, each screen with a live texture and an active source:
 The GPS/dashboard/custom screens are normally only drawn under specific in game conditions. `dllmain.cpp` patches the relevant conditional jump in the games process, flipping `JE` to `JMP` (and back) at runtime so the screen's render path is unconditionally taken whenever a screen of that type exists, and restored to normal when it doesn't. Addresses are found via pattern scanning, so it hopefully survives most game updates.
 
 ## Content sources
-Windows applications can be captured with **`WindowSource`** (`PrintWindow` + `GetDIBits`) or **`WgcWindowSource`** (Windows Graphics Capture). A first-stage **Linux bridge source** accepts bounded RGBA8 frames from a native test sender over localhost, allowing the Windows DLL to remain inside an ETS2 Proton process.
+Windows applications can be captured with **`WindowSource`** (`PrintWindow` + `GetDIBits`) or **`WgcWindowSource`** (Windows Graphics Capture). The experimental **Linux bridge source** accepts bounded RGBA8 frames from the native portal/PipeWire sender over localhost, allowing the Windows DLL to remain inside an ETS2 Proton process.
 
-The source uses a interface `IContentSource`, so other backends (a video file source, a mintor source, etc) can be implimented very easially in the future without touching the DX11 or menu code.
+The source uses the `IContentSource` interface, so other backends can be added
+without replacing the DX11 or menu code.
 
 See [Linux/Wayland bridge](docs/linux-bridge.md) for the protocol, test-pattern
 sender, portal/PipeWire sender, manual helper mode, Steam launch wrapper, and
