@@ -4,6 +4,9 @@
 A Prism3D plugin that takes over cabin screens (GPS, dashboard, or any custom accessory) in <b>Euro Truck Simulator 2</b> (or American Truck Simulator) and mirrors a live captured window onto them.
 </p>
 
+>[!NOTE]
+>This fork adds support for the games running through Proton on Linux/Wayland and was mostly made by AI
+
 ---
 
 ## What it does
@@ -17,32 +20,26 @@ Press **Ctrl+F8** in game to open an ImGui overlay. From there you can:
 
 Whatever's rendering in the picked window gets captured and blitted onto the truck's screen every frame.
 
-## Linux/Wayland testing
+## Linux/Wayland testing (Proton/Wine only)
 
-Linux support is experimental. Euro Truck Simulator 2 and the plugin remain
-Windows builds running through Proton; only the Wayland capture helper is a
-native Linux program. The helper uses xdg-desktop-portal and PipeWire, so it
-works with native Wayland windows that the DLL cannot see through Win32 APIs.
+Linux support is experimental. Euro Truck Simulator 2 and the plugin remain Windows builds running through Proton; only the Wayland capture helper is a native Linux program. The helper uses xdg-desktop-portal and PipeWire, so it works with native Wayland windows that the DLL cannot see through Win32 APIs.
 
 ### Requirements
 
-- ETS2 running its Windows DirectX 11 build through Proton
+- ETS2 running its Windows DirectX 11 build through Proton (ATS is untested but should work)
 - A working PipeWire and xdg-desktop-portal installation with the appropriate
-  desktop backend (tested on KDE Plasma under NixOS and CachyOS; Niri has not
-  been tested yet)
+  desktop backend (tested on KDE Plasma under NixOS and CachyOS)
 - GNU Make, a C++17 compiler, and the GLib/GIO and PipeWire development files
 - The Release x64 `PrismTextureStreamerFB.dll` from the same `dev` revision
 
-Common build dependency packages are `base-devel`, `glib2`, and `pipewire` on
-Arch/CachyOS, or `build-essential`, `libglib2.0-dev`, and
-`libpipewire-0.3-dev` on Ubuntu/Debian. Do not run the helper with `sudo`.
+Common build dependency packages are `base-devel`, `glib2`, and `pipewire` on Arch/CachyOS, or `build-essential`, `libglib2.0-dev`, and `libpipewire-0.3-dev` on Ubuntu/Debian. Do not run the helper with `sudo`.
 
 ### Install and run
 
 Clone the test branch and build the helper:
 
 ```sh
-git clone --branch dev https://github.com/gabors0/PrismTextureStreamer.git
+git clone https://github.com/gabors0/PrismTextureStreamer.git
 cd PrismTextureStreamer
 make -C linux_bridge portal
 ```
@@ -50,14 +47,13 @@ make -C linux_bridge portal
 If the repository is already cloned:
 
 ```sh
-git switch dev
 git pull
 make -C linux_bridge portal
 ```
 
 Download the `PrismTextureStreamerFB-win-x64` artifact from the
-[latest successful Windows DLL build](https://github.com/gabors0/PrismTextureStreamer/actions/workflows/windows-build.yml?query=branch%3Adev)
-for the `dev` branch. Copy the DLL to:
+[latest successful Windows DLL build](https://github.com/gabors0/PrismTextureStreamer/actions?query=branch%3Amain+workflow%3A%22Windows%20DLL%20build%22)
+Copy the DLL to:
 
 ```text
 steamapps/common/Euro Truck Simulator 2/bin/win_x64/plugins/PrismTextureStreamerFB.dll
@@ -70,26 +66,13 @@ to the clone:
 "/absolute/path/to/PrismTextureStreamer/linux_bridge/run_with_bridge.sh" %command%
 ```
 
-Start ETS2 normally and select the 64-bit DirectX 11 option if prompted. Load a
-profile, press **Ctrl+F8**, add a screen, set its resolution to **960x540** for
-the first performance test, and select
-**Linux bridge (localhost:27861)**. The portal chooser will then ask for one
-window or monitor. Click **Apply Unsaved Changes** after adding or changing a
-screen.
+Start ETS2 normally and select the 64-bit DirectX 11 option if prompted. Load a profile, press **Ctrl+F8**, add a screen and select **Linux bridge (localhost:27861)**. The portal chooser will then ask for one window or monitor. Click **Apply Unsaved Changes** after adding or changing a screen.
 
-Use **Choose Window** in the Ctrl+F8 menu to change the shared source without
-restarting ETS2. Closing the captured application should also reopen the portal
-chooser. Cancelling the chooser stops automatic retries until the next game
-launch; the game itself can continue running.
+Use **Choose Window** in the Ctrl+F8 menu to change the shared source without restarting ETS2. Closing the captured application should also reopen the portal chooser. Cancelling the chooser stops automatic retries until the next game launch; the game itself can continue running.
 
-Only one Linux bridge screen is supported at this stage. If performance is
-poor, test with one screen at 960x540 before adding other custom screens.
+Only one Linux bridge screen is supported at this stage. If performance is poor, test with one screen at 960x540 before adding other custom screens.
 
-When reporting results, include the distribution, desktop/compositor, GPU,
-Proton version, selected helper FPS/resolution, approximate game FPS impact,
-and whether window reselection and closing the captured application work.
-Detailed protocol, manual-helper, test-pattern, and troubleshooting information
-is in [the Linux/Wayland bridge documentation](docs/linux-bridge.md).
+When reporting results, include the distribution, desktop/compositor, GPU, Proton version, selected helper FPS/resolution, approximate game FPS impact, and whether window reselection and closing the captured application work. Detailed protocol, manual-helper, test-pattern, and troubleshooting information is in [the Linux/Wayland bridge documentation](docs/linux-bridge.md).
 
 ## How it works
 
