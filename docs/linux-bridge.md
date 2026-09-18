@@ -215,7 +215,7 @@ sender does not modify portal configuration.
 
 ## Next step
 
-Test the experimental sender across KDE and Niri, then add format support only
-for formats actually observed there (DMA-BUF/modifier negotiation or additional
-raw formats if required). After that, persist the portal restore token to avoid
-showing the chooser on every launch.
+Test the experimental sender on Niri and across more KDE setups, then add format
+support only for formats actually observed there (DMA-BUF/modifier negotiation
+or additional raw formats if required). After that, persist the portal restore
+token to avoid showing the chooser on every launch.

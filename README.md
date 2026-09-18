@@ -28,7 +28,8 @@ works with native Wayland windows that the DLL cannot see through Win32 APIs.
 
 - ETS2 running its Windows DirectX 11 build through Proton
 - A working PipeWire and xdg-desktop-portal installation with the appropriate
-  desktop backend (tested primarily on KDE Plasma and Niri)
+  desktop backend (tested on KDE Plasma under NixOS and CachyOS; Niri has not
+  been tested yet)
 - GNU Make, a C++17 compiler, and the GLib/GIO and PipeWire development files
 - The Release x64 `PrismTextureStreamerFB.dll` from the same `dev` revision
 
