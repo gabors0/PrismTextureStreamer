@@ -22,7 +22,7 @@ Whatever's rendering in the picked window gets captured and blitted onto the tru
 
 ## Linux/Wayland testing (Proton/Wine only)
 
-Linux support is experimental. Euro Truck Simulator 2 and the plugin remain Windows builds running through Proton; only the Wayland capture helper is a native Linux program. The helper uses xdg-desktop-portal and PipeWire, so it works with native Wayland windows that the DLL cannot see through Win32 APIs.
+Linux support is experimental. Euro Truck Simulator 2 and the plugin remain Windows builds running through Proton; only the Wayland capture helper is a native Linux program. The helper uses xdg-desktop-portal and PipeWire, so it works with native Wayland windows that the DLL cannot see through Win32 APIs. For more info about how it works, see [linux_bridge.md](https://github.com/gabors0/PrismTextureStreamer/blob/main/docs/linux-bridge.md)
 
 ### Requirements
 

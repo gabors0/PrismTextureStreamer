@@ -1,5 +1,7 @@
 # Linux/Wayland bridge
 
+![](https://github.com/gabors0/PrismTextureStreamer/blob/main/docs/linux_example.gif?raw=true)
+
 Euro Truck Simulator 2 and `PrismTextureStreamerFB.dll` remain Windows binaries
 running inside Proton. Native Wayland windows are not Win32 windows, so the
 existing `EnumWindows`, Windows Graphics Capture, and `PrintWindow` sources
