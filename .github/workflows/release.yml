@@ -100,7 +100,15 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          prerelease=""
+          # A release created by hand on GitHub (which also creates the tag)
+          # keeps its title and notes; only the built files are attached.
+          if gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" assets/* --repo "$GITHUB_REPOSITORY" --clobber
+            exit 0
+          fi
+          # Mark stable releases as Latest explicitly: a hyphenated tag such as
+          # v1.1.1-linux.1 looks like a semver pre-release to GitHub's own pick.
+          prerelease="--latest"
           case "$GITHUB_REF_NAME" in
             *-alpha*|*-beta*|*-rc*) prerelease="--prerelease" ;;
           esac
