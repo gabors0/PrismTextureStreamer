@@ -4,6 +4,7 @@
 #include "../bridge/frame_protocol.h"
 
 #include <gio/gio.h>
+#include <gio/gunixfdlist.h>
 #include <glib-unix.h>
 #include <pipewire/pipewire.h>
 #include <spa/param/video/format-utils.h>
