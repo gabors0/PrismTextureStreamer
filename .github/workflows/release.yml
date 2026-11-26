@@ -1,0 +1,113 @@
+name: Release
+
+# Push a tag such as v1.1.1-linux.1 to build the Windows DLL and the Linux
+# bridge helper from that exact commit and publish them as a GitHub Release.
+# The tag must start with "v" followed by g_version from version.h.
+# Tags containing -alpha, -beta or -rc are published as pre-releases.
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: microsoft/setup-msbuild@v2
+      - name: Build Release x64 DLL
+        run: msbuild PrismTextureStreamerFB.sln /m /p:Configuration=Release /p:Platform=x64
+      - name: Collect DLL
+        shell: pwsh
+        run: |
+          $dlls = @(Get-ChildItem -Recurse -File -Filter PrismTextureStreamerFB.dll | Where-Object { $_.FullName -match '\\Release\\' })
+          if ($dlls.Count -ne 1) {
+            $dlls | ForEach-Object { Write-Host $_.FullName }
+            throw "Expected exactly one Release PrismTextureStreamerFB.dll, found $($dlls.Count)"
+          }
+          New-Item -ItemType Directory -Force dist | Out-Null
+          Copy-Item $dlls[0].FullName dist/PrismTextureStreamerFB.dll
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-dll
+          path: dist/PrismTextureStreamerFB.dll
+          if-no-files-found: error
+
+  linux:
+    runs-on: ubuntu-latest
+    # Built on Ubuntu 22.04 so the helper only needs glibc 2.34+ and runs on
+    # older distributions as well as rolling ones.
+    container: ubuntu:22.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install build dependencies
+        run: |
+          apt-get update
+          DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+            build-essential pkg-config libglib2.0-dev libpipewire-0.3-dev
+      - name: Check tag matches version.h
+        run: |
+          version=$(sed -n 's/.*g_version = "\([^"]*\)".*/\1/p' PrismTextureStreamerFB/version.h)
+          case "$GITHUB_REF_NAME" in
+            "v$version"|"v$version"-*) echo "Tag $GITHUB_REF_NAME matches version $version" ;;
+            *) echo "Tag $GITHUB_REF_NAME does not start with v$version (version.h)"; exit 1 ;;
+          esac
+      - name: Build helper and run tests
+        run: make -C linux_bridge all portal test
+      - name: Package helper
+        run: |
+          pkg="PrismTextureStreamer-linux-bridge-$GITHUB_REF_NAME"
+          mkdir -p "dist/$pkg/build"
+          cp linux_bridge/build/portal_sender "dist/$pkg/build/"
+          cp linux_bridge/run_with_bridge.sh "dist/$pkg/"
+          chmod 755 "dist/$pkg/build/portal_sender" "dist/$pkg/run_with_bridge.sh"
+          # A tarball keeps the executable bits that artifact zips would drop.
+          tar -C dist -czf "dist/$pkg-x86_64.tar.gz" "$pkg"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-bridge
+          path: dist/*.tar.gz
+          if-no-files-found: error
+
+  release:
+    needs: [windows, linux]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: assets
+          merge-multiple: true
+      - name: Write checksums and notes
+        run: |
+          cd assets
+          sha256sum -- * > ../SHA256SUMS.txt
+          mv ../SHA256SUMS.txt .
+          cat SHA256SUMS.txt
+          cat > ../notes.md <<EOF
+          ## Downloads
+
+          - **PrismTextureStreamerFB.dll**: the plugin, for Windows and for ETS2/ATS running through Proton. Copy it to \`bin/win_x64/plugins/\` in the game folder.
+          - **PrismTextureStreamer-linux-bridge-$GITHUB_REF_NAME-x86_64.tar.gz**: the Wayland capture helper for Linux (x86_64, needs glibc 2.34+, PipeWire and xdg-desktop-portal). Extract it anywhere and set the Steam launch options to \`"/path/to/extracted/run_with_bridge.sh" %command%\`. On NixOS, build the helper from source instead.
+
+          Use the DLL and the helper from the same release. See the README for full setup steps.
+          EOF
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          prerelease=""
+          case "$GITHUB_REF_NAME" in
+            *-alpha*|*-beta*|*-rc*) prerelease="--prerelease" ;;
+          esac
+          gh release create "$GITHUB_REF_NAME" assets/* \
+            --repo "$GITHUB_REPOSITORY" \
+            --verify-tag \
+            --title "$GITHUB_REF_NAME" \
+            --notes-file notes.md \
+            --generate-notes \
+            $prerelease

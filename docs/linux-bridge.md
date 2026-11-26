@@ -165,6 +165,12 @@ The output is normally `x64/Release/PrismTextureStreamerFB.dll`. The included
 Windows GitHub Actions workflow performs the same build and publishes the DLL as
 the `PrismTextureStreamerFB-win-x64` artifact when the repository is pushed.
 
+Pushing a tag that starts with `v` plus the version in `PrismTextureStreamerFB/version.h`
+(for example `v1.1.1-linux.1`) runs the Release workflow. It builds the DLL and the
+Linux helper from that commit, the helper on Ubuntu 22.04 so it needs only
+glibc 2.34 or newer, and publishes both with SHA-256 checksums as a GitHub Release.
+Tags containing `-alpha`, `-beta` or `-rc` are published as pre-releases.
+
 ## Manual ETS2/Proton test
 
 1. In Steam, open ETS2 Properties > Compatibility, enable “Force the use of a

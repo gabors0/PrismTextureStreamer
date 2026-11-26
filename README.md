@@ -29,14 +29,31 @@ Linux support is experimental. Euro Truck Simulator 2 and the plugin remain Wind
 - ETS2 running its Windows DirectX 11 build through Proton (ATS is untested but should work)
 - A working PipeWire and xdg-desktop-portal installation with the appropriate
   desktop backend (tested on KDE Plasma under NixOS and CachyOS)
-- GNU Make, a C++17 compiler, and the GLib/GIO and PipeWire development files
-- The Release x64 `PrismTextureStreamerFB.dll` from the same `dev` revision
+- The `PrismTextureStreamerFB.dll` and the Linux helper from the same release (or the same commit, if you build them yourself)
 
-Common build dependency packages are `base-devel`, `glib2`, and `pipewire` on Arch/CachyOS, or `build-essential`, `libglib2.0-dev`, and `libpipewire-0.3-dev` on Ubuntu/Debian. Do not run the helper with `sudo`.
+### Install from a release (recommended)
 
-### Install and run
+1. Download `PrismTextureStreamerFB.dll` and `PrismTextureStreamer-linux-bridge-<version>-x86_64.tar.gz` from the [latest release](https://github.com/gabors0/PrismTextureStreamer/releases/latest). The prebuilt helper needs an x86_64 distribution with glibc 2.34 or newer. On NixOS, build it from source instead (see below).
+2. Extract the tarball anywhere. It contains a `PrismTextureStreamer-linux-bridge-<version>` folder with `run_with_bridge.sh` and the prebuilt helper.
+3. Copy the DLL to:
 
-Clone the test branch and build the helper:
+   ```text
+   steamapps/common/Euro Truck Simulator 2/bin/win_x64/plugins/PrismTextureStreamerFB.dll
+   ```
+
+4. Set ETS2's Steam Launch Options, replacing the path with the absolute path to the extracted folder:
+
+   ```text
+   "/absolute/path/to/PrismTextureStreamer-linux-bridge-<version>/run_with_bridge.sh" %command%
+   ```
+
+When you update, replace both the DLL and the helper with ones from the new release.
+
+### Build from source (latest changes)
+
+This also needs GNU Make, a C++17 compiler, and the GLib/GIO and PipeWire development files. Common build dependency packages are `base-devel`, `glib2`, and `pipewire` on Arch/CachyOS, or `build-essential`, `libglib2.0-dev`, and `libpipewire-0.3-dev` on Ubuntu/Debian. Do not run the helper with `sudo`.
+
+Clone the repository and build the helper:
 
 ```sh
 git clone https://github.com/gabors0/PrismTextureStreamer.git
@@ -53,7 +70,7 @@ make -C linux_bridge portal
 
 Download the `PrismTextureStreamerFB-win-x64` artifact from the
 [latest successful Windows DLL build](https://github.com/gabors0/PrismTextureStreamer/actions?query=branch%3Amain+workflow%3A%22Windows%20DLL%20build%22)
-Copy the DLL to:
+(downloading Actions artifacts requires a GitHub account). Copy the DLL to:
 
 ```text
 steamapps/common/Euro Truck Simulator 2/bin/win_x64/plugins/PrismTextureStreamerFB.dll
@@ -65,6 +82,8 @@ to the clone:
 ```text
 "/absolute/path/to/PrismTextureStreamer/linux_bridge/run_with_bridge.sh" %command%
 ```
+
+### Run
 
 Start ETS2 normally and select the 64-bit DirectX 11 option if prompted. Load a profile, press **Ctrl+F8**, add a screen and select **Linux bridge (localhost:27861)**. The portal chooser will then ask for one window or monitor. Click **Apply Unsaved Changes** after adding or changing a screen.
 
@@ -129,7 +148,7 @@ exact Proton test steps.
 
 ## Usage
 
-1. Drop the compiled plugin DLL into your ETS2/ATS `plugins` folder (not a injected DLL)
+1. Drop the plugin DLL (from the [latest release](https://github.com/gabors0/PrismTextureStreamer/releases/latest) or your own build) into your ETS2/ATS `plugins` folder (not a injected DLL)
 2. Launch the game, Ctrl+F8 to open the menu
 3. Add a screen, pick a source window, hit Apply
 
